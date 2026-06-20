@@ -1,0 +1,176 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  cnpj      String   @unique
+  createdAt DateTime @default(now())
+
+  users        User[]
+  contracts    Contract[]
+  templates    ContractTemplate[]
+  obras        Obra[]
+  auditLogs    AuditLog[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   @default("senha123")
+  name      String
+  role      String   // "ADMIN" or "USER"
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  auditLogs AuditLog[]
+}
+
+model Contract {
+  id               String   @id @default(uuid())
+  title            String
+  type             String   // "trabalho", "obra", "locação", "serviço", etc.
+  status           String   // "Rascunho", "Aguardando assinatura", "Assinado", "Expirado", "Encerrado", "Vencendo", "Ativo"
+  value            Float
+  startDate        DateTime
+  endDate          DateTime
+  relatedPartyName String
+  relatedPartyInfo String   // JSON or text details
+  content          String   // Document text content
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  signatureRequests SignatureRequest[]
+  obras             Obra[]
+  uploads           Upload[]
+}
+
+model ContractTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  category    String   // service, labor, obra, rent, etc.
+  baseContent String
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  fields      ContractTemplateField[]
+}
+
+model ContractTemplateField {
+  id         String           @id @default(uuid())
+  name       String           // e.g., "valor_mensal", "data_inicio", "contratante"
+  label      String
+  type       String           // text, number, date, etc.
+  templateId String
+  template   ContractTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+}
+
+model SignatureRequest {
+  id             String   @id @default(uuid())
+  contractId     String
+  contract       Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  channel        String   // "E-mail", "WhatsApp", "Ambos"
+  recipient      String   // e-mail or phone number
+  status         String   // "Pendente", "Assinado", "Expirado"
+  sentAt         DateTime @default(now())
+  signedAt       DateTime?
+  signerName     String?
+  signerCpf      String?
+  signatureType  String?   // "drawn" | "typed"
+  signatureValue String?   // Holds base64 DataURL or typed value
+}
+
+model Obra {
+  id             String   @id @default(uuid())
+  name           String
+  budgetPlanned  Float
+  budgetSpent    Float    @default(0.0)
+  status         String   // "Planejamento", "Execução", "Concluído"
+  address        String
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contractId     String?
+  contract       Contract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+
+  steps          ObraStep[]
+  vistorias      ObraVistoria[]
+  costs          ObraCusto[]
+  purchaseOrders PurchaseOrder[]
+  uploads        Upload[]
+}
+
+model ObraStep {
+  id          String    @id @default(uuid())
+  obraId      String
+  obra        Obra      @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  phase       String    // "planejamento", "execução", "entrega"
+  title       String
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+}
+
+model ObraVistoria {
+  id          String   @id @default(uuid())
+  obraId      String
+  obra        Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  type        String   // "Inicial", "Final"
+  description String
+  imageUrl    String?  // Photo of the site
+  createdAt   DateTime @default(now())
+}
+
+model ObraCusto {
+  id          String   @id @default(uuid())
+  obraId      String
+  obra        Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  description String
+  amount      Float
+  category    String   // "Materiais", "Mão de Obra", "Locação", "Outros"
+  date        DateTime @default(now())
+}
+
+model PurchaseOrder {
+  id          String   @id @default(uuid())
+  obraId      String
+  obra        Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  orderNumber String   @unique
+  payerCnpj   String
+  description String
+  amount      Float
+  status      String   // "Pendente", "Aprovada", "Cancelada"
+  createdAt   DateTime @default(now())
+}
+
+model Upload {
+  id          String    @id @default(uuid())
+  name        String
+  fileUrl     String
+  entityType  String    // "contract", "obra", "vistoria"
+  contractId  String?
+  contract    Contract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  obraId      String?
+  obra        Obra?     @relation(fields: [obraId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  details   String
+  createdAt DateTime @default(now())
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Contratos & Gestão de Obras",
+  "description": "Sistema de controle de contratos, assinatura eletrônica e gestão orçamentária de obras e manutenções.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
